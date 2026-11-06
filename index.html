@@ -183,8 +183,17 @@ function pixelGlyph(char,cellWidth,h,fontSize){
  ctx.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif';
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(char,cellWidth/2,h/2);
  const data=ctx.getImageData(0,0,off.width,off.height).data,points=[];
+ // 各ピクセルブロックの中央をサンプリングし、細い文字でも点が残るようにする
  for(let y=0;y<h;y+=PIXEL_STEP)for(let x=0;x<cellWidth;x+=PIXEL_STEP){
-  if(data[(Math.floor(y)*off.width+Math.floor(x))*4+3]>100)points.push({x:x+PIXEL_STEP/2,y:y+PIXEL_STEP/2});
+  const sx=Math.min(off.width-1,Math.floor(x+PIXEL_STEP/2));
+  const sy=Math.min(off.height-1,Math.floor(y+PIXEL_STEP/2));
+  if(data[(sy*off.width+sx)*4+3]>24)points.push({x:x+PIXEL_STEP/2,y:y+PIXEL_STEP/2});
+ }
+ // フォント読み込み直後などにサンプリング結果が空なら、細かい間隔でもう一度取得
+ if(!points.length){
+  for(let y=0;y<h;y+=3)for(let x=0;x<cellWidth;x+=3){
+   if(data[(Math.floor(y)*off.width+Math.floor(x))*4+3]>24)points.push({x:x+1.5,y:y+1.5});
+  }
  }
  return points;
 }
@@ -246,6 +255,8 @@ pixelCanvas.addEventListener('touchmove',e=>{if(e.touches[0])setPixelPointer(e.t
 pixelCanvas.addEventListener('touchend',()=>pixelPointer=null);
 window.addEventListener('resize',()=>{if(clockDesign==='pixel')resizePixelCanvas()});
 pixelLoop();
+// Webフォント読み込み完了後にピクセル文字を再生成
+if(document.fonts&&document.fonts.ready){document.fonts.ready.then(()=>{if(clockDesign==='pixel'){resizePixelCanvas();setPixelTime(lastClockText,true)}})}
 // リアルタイム時計
 const pad=n=>String(n).padStart(2,'0');
 function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);const nextText=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());document.getElementById('clockTime').textContent=nextText;if(nextText!==lastClockText){lastClockText=nextText;if(clockDesign==='pixel')setPixelTime(lastClockText)}}
