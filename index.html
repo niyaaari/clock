@@ -34,6 +34,16 @@ h2{font-size:16px;margin:0 0 15px}
 .clock-date{text-align:center;color:var(--muted);font-size:14px;margin:3px 0 12px}
 .digital{text-align:center;font-size:clamp(42px,12vw,68px);font-weight:700;letter-spacing:.025em;line-height:1.3;font-variant-numeric:tabular-nums;white-space:nowrap}
 .clock-caption{text-align:center;color:var(--muted);font-size:12px;margin-top:10px}
+.clock-design-switch{display:flex;justify-content:center;gap:8px;margin:18px 0 0}
+.clock-design-button,.pixel-shape-button{padding:8px 14px;border:1px solid var(--control-border);border-radius:999px;background:var(--input);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.clock-design-button[aria-pressed="true"],.pixel-shape-button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.pixel-clock-wrap{position:relative;width:100%;height:300px;margin-top:12px;overflow:hidden}
+#pixelClockCanvas{display:block;width:100%;height:100%;touch-action:pan-y}
+.pixel-clock-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}
+.pixel-shapes{display:flex;gap:6px;flex-wrap:wrap}
+.pixel-scatter{padding:9px 14px;border:1px solid var(--control-border);border-radius:999px;background:var(--input);color:var(--ink);font:inherit;font-size:12px}
+@media(max-width:480px){.pixel-clock-wrap{height:230px}.pixel-clock-controls{justify-content:center}.pixel-scatter{width:100%}}
+@media (orientation:landscape){.pixel-clock-wrap{height:360px}}
 @media (orientation:landscape){main{max-width:900px}.card:has(#clockTime){padding:30px 24px}.clock-date{font-size:17px;margin-bottom:14px}.digital{font-size:clamp(64px,12vw,128px);letter-spacing:.045em;line-height:1.2}.clock-caption{font-size:14px;margin-top:14px}}
 .field{display:block;color:var(--muted);font-size:13px;font-weight:650}
 .field input{display:block;width:100%;min-width:0;margin-top:7px;padding:12px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);color:var(--ink);font:inherit;font-size:16px;color-scheme:inherit}
@@ -91,8 +101,25 @@ footer{font-size:11px;padding:10px 3px}
 <section class="card panel" id="panel-clock" role="tabpanel" aria-labelledby="tab-clock">
 <h2>01　リアルタイム時計</h2>
 <div class="clock-date" id="clockDate">----</div>
+<div id="simpleClockView">
 <div class="digital" id="clockTime">00:00:00</div>
 <p class="clock-caption">現在の時刻</p>
+</div>
+<div id="pixelClockView" hidden>
+<div class="pixel-clock-wrap"><canvas id="pixelClockCanvas" aria-label="ピクセルで表示する現在時刻"></canvas></div>
+<div class="pixel-clock-controls">
+<div class="pixel-shapes" role="group" aria-label="ピクセルの形">
+<button class="pixel-shape-button" type="button" data-shape="square" aria-pressed="true">Squares</button>
+<button class="pixel-shape-button" type="button" data-shape="circle" aria-pressed="false">Dots</button>
+<button class="pixel-shape-button" type="button" data-shape="cross" aria-pressed="false">Crosses</button>
+</div>
+<button class="pixel-scatter" id="pixelScatter" type="button">Scatter and re-form</button>
+</div>
+</div>
+<div class="clock-design-switch" role="group" aria-label="時計のデザイン">
+<button class="clock-design-button" type="button" data-design="simple" aria-pressed="true">01　シンプル</button>
+<button class="clock-design-button" type="button" data-design="pixel" aria-pressed="false">02　Pixel Flow</button>
+</div>
 </section>
 <section class="card panel" id="panel-countdown" role="tabpanel" aria-labelledby="tab-countdown" hidden>
 <h2>02　カウントダウン</h2>
@@ -127,9 +154,75 @@ const tabs=[...document.querySelectorAll('.tab')],panels=[...document.querySelec
 function selectTab(id){tabs.forEach(t=>{const active=t.id==='tab-'+id;t.setAttribute('aria-selected',String(active));t.tabIndex=active?0:-1});panels.forEach(p=>p.hidden=p.id!=='panel-'+id)}
 tabs.forEach((tab,i)=>{tab.addEventListener('click',()=>selectTab(tab.id.replace('tab-','')));tab.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=(i+(e.key==='ArrowRight'?1:2))%3;tabs[next].focus();tabs[next].click()}})});
 selectTab('clock');
+// 時計デザイン切り替え・Pixel Flow
+const simpleClockView=document.getElementById('simpleClockView');
+const pixelClockView=document.getElementById('pixelClockView');
+const designButtons=[...document.querySelectorAll('.clock-design-button')];
+let clockDesign='simple';
+designButtons.forEach(button=>button.addEventListener('click',()=>{
+ clockDesign=button.dataset.design;
+ simpleClockView.hidden=clockDesign!=='simple';
+ pixelClockView.hidden=clockDesign!=='pixel';
+ designButtons.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+ if(clockDesign==='pixel'){resizePixelCanvas();drawPixelClock(lastClockText)}
+}));
+const pixelCanvas=document.getElementById('pixelClockCanvas');
+const pixelCtx=pixelCanvas.getContext('2d');
+const sampleCanvas=document.createElement('canvas');
+const sampleCtx=sampleCanvas.getContext('2d',{willReadFrequently:true});
+let pixelParticles=[],pixelShape='square',pixelFrame=0,lastClockText='00:00:00',pixelPointer=null,pixelScatterPower=0;
+function resizePixelCanvas(){
+ const rect=pixelCanvas.getBoundingClientRect();if(!rect.width||!rect.height)return;
+ const dpr=Math.min(window.devicePixelRatio||1,2);
+ pixelCanvas.width=Math.round(rect.width*dpr);pixelCanvas.height=Math.round(rect.height*dpr);
+ pixelCtx.setTransform(dpr,0,0,dpr,0,0);
+ drawPixelClock(lastClockText);
+}
+function drawPixelClock(text){
+ const rect=pixelCanvas.getBoundingClientRect(),w=rect.width,h=rect.height;if(!w||!h)return;
+ const spacing=7,off=document.createElement('canvas');off.width=Math.ceil(w);off.height=Math.ceil(h);
+ const ctx=off.getContext('2d',{willReadFrequently:true});
+ let fontSize=Math.min(h*.48,w/(text.length*.62));
+ ctx.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif';
+ while(ctx.measureText(text).width>w*.92&&fontSize>18){fontSize-=2;ctx.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif'}
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(text,w/2,h/2);
+ const pixels=ctx.getImageData(0,0,off.width,off.height).data,targets=[];
+ for(let y=0;y<h;y+=spacing){for(let x=0;x<w;x+=spacing){if(pixels[(Math.floor(y)*off.width+Math.floor(x))*4+3]>100)targets.push({x:x+spacing/2,y:y+spacing/2})}}
+ const old=pixelParticles;pixelParticles=targets.map((p,i)=>{const previous=old[i];return{x:previous?previous.x:p.x,y:previous?previous.y:p.y,vx:0,vy:0,tx:p.x,ty:p.y}});
+}
+function setPixelShape(shape){pixelShape=shape;document.querySelectorAll('.pixel-shape-button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shape===shape)))}
+document.querySelectorAll('.pixel-shape-button').forEach(b=>b.addEventListener('click',()=>setPixelShape(b.dataset.shape)));
+document.getElementById('pixelScatter').addEventListener('click',()=>{
+ pixelParticles.forEach(p=>{const a=Math.random()*Math.PI*2,s=5+Math.random()*12;p.vx+=Math.cos(a)*s;p.vy+=Math.sin(a)*s});
+ pixelScatterPower=1;
+});
+function pixelLoop(){
+ const rect=pixelCanvas.getBoundingClientRect(),w=rect.width,h=rect.height;
+ if(w&&h&&!pixelClockView.hidden){
+  pixelCtx.clearRect(0,0,w,h);const color=getComputedStyle(root).getPropertyValue('--ink').trim()||'#6C4732';
+  pixelCtx.fillStyle=color;
+  pixelParticles.forEach(p=>{
+   if(pixelPointer){const dx=p.x-pixelPointer.x,dy=p.y-pixelPointer.y,d=Math.hypot(dx,dy)||1;if(d<105){const force=(105-d)/105*.9;p.vx+=dx/d*force;p.vy+=dy/d*force}}
+   p.vx+=(p.tx-p.x)*.035;p.vy+=(p.ty-p.y)*.035;p.vx*=.86;p.vy*=.86;p.x+=p.vx;p.y+=p.vy;
+   if(pixelShape==='circle'){pixelCtx.beginPath();pixelCtx.arc(p.x,p.y,2.2,0,Math.PI*2);pixelCtx.fill()}
+   else if(pixelShape==='cross'){pixelCtx.fillRect(p.x-1,p.y-3,2,6);pixelCtx.fillRect(p.x-3,p.y-1,6,2)}
+   else{pixelCtx.fillRect(p.x-2,p.y-2,4,4)}
+  });
+ }
+ pixelFrame=requestAnimationFrame(pixelLoop);
+}
+function setPixelPointer(e){const r=pixelCanvas.getBoundingClientRect();pixelPointer={x:e.clientX-r.left,y:e.clientY-r.top}}
+pixelCanvas.addEventListener('pointermove',setPixelPointer);
+pixelCanvas.addEventListener('pointerleave',()=>pixelPointer=null);
+pixelCanvas.addEventListener('touchstart',e=>{if(e.touches[0])setPixelPointer(e.touches[0])},{passive:true});
+pixelCanvas.addEventListener('touchmove',e=>{if(e.touches[0])setPixelPointer(e.touches[0])},{passive:true});
+pixelCanvas.addEventListener('touchend',()=>pixelPointer=null);
+window.addEventListener('resize',()=>{if(clockDesign==='pixel')resizePixelCanvas()});
+pixelLoop();
 // リアルタイム時計
 const pad=n=>String(n).padStart(2,'0');
-function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);document.getElementById('clockTime').textContent=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())}
+function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);lastClockText=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());document.getElementById('clockTime').textContent=lastClockText;if(clockDesign==='pixel'&&now.getSeconds()!==lastPixelSecond){lastPixelSecond=now.getSeconds();drawPixelClock(lastClockText)}}
+let lastPixelSecond=-1;
 updateClock();setInterval(updateClock,200);
 // 複数カウントダウン
 const targetDate=document.getElementById('targetDate'),countdownName=document.getElementById('countdownName'),countdownList=document.getElementById('countdownList');
