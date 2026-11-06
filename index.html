@@ -177,22 +177,25 @@ function resizePixelCanvas(){
  pixelCtx.setTransform(dpr,0,0,dpr,0,0);
  setPixelTime(lastClockText,true);
 }
-function pixelGlyph(char,cellWidth,h,fontSize){
- const off=document.createElement('canvas');off.width=Math.max(1,Math.ceil(cellWidth));off.height=Math.max(1,Math.ceil(h));
+function pixelGlyph(char,cellWidth,glyphHeight,fontSize){
+ const off=document.createElement('canvas');
+ off.width=Math.max(1,Math.ceil(cellWidth));
+ off.height=Math.max(1,Math.ceil(glyphHeight));
  const ctx=off.getContext('2d',{willReadFrequently:true});
  ctx.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif';
- ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(char,cellWidth/2,h/2);
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';
+ ctx.fillText(char,cellWidth/2,off.height/2);
  const data=ctx.getImageData(0,0,off.width,off.height).data,points=[];
- // 各ピクセルブロックの中央をサンプリングし、細い文字でも点が残るようにする
- for(let y=0;y<h;y+=PIXEL_STEP)for(let x=0;x<cellWidth;x+=PIXEL_STEP){
-  const sx=Math.min(off.width-1,Math.floor(x+PIXEL_STEP/2));
-  const sy=Math.min(off.height-1,Math.floor(y+PIXEL_STEP/2));
-  if(data[(sy*off.width+sx)*4+3]>24)points.push({x:x+PIXEL_STEP/2,y:y+PIXEL_STEP/2});
- }
- // フォント読み込み直後などにサンプリング結果が空なら、細かい間隔でもう一度取得
- if(!points.length){
-  for(let y=0;y<h;y+=3)for(let x=0;x<cellWidth;x+=3){
-   if(data[(Math.floor(y)*off.width+Math.floor(x))*4+3]>24)points.push({x:x+1.5,y:y+1.5});
+ // ブロック中央の1点だけでなく、ブロック内に文字の画素があれば点を配置する
+ for(let y=0;y<off.height;y+=PIXEL_STEP){
+  for(let x=0;x<off.width;x+=PIXEL_STEP){
+   let visible=false;
+   for(let yy=y;yy<Math.min(y+PIXEL_STEP,off.height)&&!visible;yy++){
+    for(let xx=x;xx<Math.min(x+PIXEL_STEP,off.width);xx++){
+     if(data[(yy*off.width+xx)*4+3]>16){visible=true;break}
+    }
+   }
+   if(visible)points.push({x:x+PIXEL_STEP/2,y:y+PIXEL_STEP/2});
   }
  }
  return points;
@@ -203,12 +206,12 @@ function setPixelTime(text,instant=false){
  measure.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif';
  const widths=[...text].map(c=>measure.measureText(c).width),total=widths.reduce((a,b)=>a+b,0);
  const scale=Math.min(1,w*.92/total),cellWidths=widths.map(v=>v*scale),font=fontSize*scale;
- let x=(w-total*scale)/2,now=performance.now();
+ const glyphHeight=font*1.55,now=performance.now();
  const next=[...text].map((char,i)=>{
-  const cellWidth=cellWidths[i],glyph=pixelGlyph(char,cellWidth,h,font);
+  const cellWidth=cellWidths[i],glyph=pixelGlyph(char,cellWidth,glyphHeight,font);
   const group=pixelGroups[i];
-  if(!group||instant||group.char===char)return {char,x,cellWidth,glyph,oldGlyph:null,changedAt:0};
-  return {char,x,cellWidth,glyph,oldGlyph:group.glyph,changedAt:now};
+  if(!group||instant||group.char===char)return {char,x:0,cellWidth,glyph,glyphHeight,oldGlyph:null,changedAt:0};
+  return {char,x:0,cellWidth,glyph,glyphHeight,oldGlyph:group.glyph,oldGlyphHeight:group.glyphHeight,changedAt:now};
  }).map((g,i)=>{g.x=(w-total*scale)/2+cellWidths.slice(0,i).reduce((a,b)=>a+b,0);return g});
  pixelGroups=next;
 }
@@ -240,8 +243,9 @@ function pixelLoop(){
    const progress=g.changedAt?Math.min(1,(now-g.changedAt)/SLIDE_MS):1;
    const eased=1-Math.pow(1-progress,3);
    const scatter=g.scatterUntil&&now<g.scatterUntil?((g.scatterUntil-now)/650)*7:0;
-   if(g.oldGlyph&&progress<1)drawGlyph(g.oldGlyph,g.x,h*.26-eased*h*.72,color,scatter,g.scatterSeed||0);
-   drawGlyph(g.glyph,g.x,h*.26+(g.oldGlyph?(1-eased)*h*.72:0),color,scatter,g.scatterSeed||0);
+   const glyphTop=(h-g.glyphHeight)/2;
+   if(g.oldGlyph&&progress<1)drawGlyph(g.oldGlyph,g.x,(h-(g.oldGlyphHeight||g.glyphHeight))/2-eased*h*.55,color,scatter,g.scatterSeed||0);
+   drawGlyph(g.glyph,g.x,glyphTop+(g.oldGlyph?(1-eased)*h*.55:0),color,scatter,g.scatterSeed||0);
    if(progress>=1){g.oldGlyph=null;g.changedAt=0}
   });
  }
