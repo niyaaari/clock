@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#E9E2D0">
+<meta name="description" content="リアルタイム時計、日時指定カウントダウン、ラップ機能付きストップウォッチを使えるシンプルな時計ツールです。">
+<meta property="og:title" content="時計くん | kubearma">
+<meta property="og:description" content="時計・カウントダウン・ストップウォッチをシンプルに。">
+<title>時計くん | kubearma</title>
+<style>
+@font-face{font-family:"GenEi M Gothic";src:url("https://raw.githubusercontent.com/niyaaari/part-time-pay-calculator/main/fonts/GenEiMGothic2-Regular.ttf") format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"GenEi M Gothic";src:url("https://raw.githubusercontent.com/niyaaari/part-time-pay-calculator/main/fonts/GenEiMGothic2-Medium.ttf") format("truetype");font-weight:500;font-display:swap}
+@font-face{font-family:"GenEi M Gothic";src:url("https://raw.githubusercontent.com/niyaaari/part-time-pay-calculator/main/fonts/GenEiMGothic2-Bold.ttf") format("truetype");font-weight:700;font-display:swap}
+:root{color-scheme:light;--bg:#E9E2D0;--card:rgba(255,255,255,.24);--ink:#6C4732;--muted:#806a5c;--line:rgba(108,71,50,.22);--accent:#6C4732;--input:rgba(255,255,255,.58);--glass-border:rgba(108,71,50,.22);--control-border:rgba(108,71,50,.38);--deco:#6C4732}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#171b25;--card:rgba(43,46,56,.76);--ink:#e7e9ee;--muted:#a5aab5;--line:rgba(255,255,255,.10);--accent:#91aaff;--input:rgba(30,34,43,.58);--glass-border:rgba(255,255,255,.12);--control-border:rgba(255,255,255,.2);--deco:#596170}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:26px 15px 42px;color:var(--ink);font-family:"GenEi M Gothic",system-ui,sans-serif;background:var(--bg);transition:background-color .28s,color .28s}
+main{max-width:600px;margin:auto}
+header{margin:0 0 22px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:750;letter-spacing:.12em;color:var(--accent);text-decoration:none}.brand-mark{display:block;width:20px;height:20px;flex:none}
+.theme-toggle{display:grid;place-items:center;width:40px;height:40px;padding:0;border:1px solid var(--control-border);border-radius:999px;background:var(--card);color:var(--ink);cursor:pointer}.theme-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:30px;margin:7px 0}.sub,.hint,footer{color:var(--muted);font-size:13px;line-height:1.7}
+.card{position:relative;isolation:isolate;margin:17px 0;padding:20px 18px;border:0;border-radius:0;background:transparent;box-shadow:none}
+.card:before,.card:after{content:"";position:absolute;pointer-events:none;z-index:0;transition:all .32s ease-out}
+.card:before{top:-6px;bottom:-6px;left:0;right:0;border-left:2px solid var(--deco);border-right:2px solid var(--deco)}
+.card:after{top:0;bottom:0;left:-6px;right:-6px;border-top:2px solid var(--deco);border-bottom:2px solid var(--deco)}
+.card>*{position:relative;z-index:1}
+h2{font-size:16px;margin:0 0 15px}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0 23px}
+.tab{padding:11px 5px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);color:var(--ink);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.panel[hidden]{display:none}
+.clock-date{text-align:center;color:var(--muted);font-size:14px;margin:3px 0 12px}
+.digital{text-align:center;font-size:clamp(42px,12vw,68px);font-weight:700;letter-spacing:.025em;line-height:1.3;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clock-caption{text-align:center;color:var(--muted);font-size:12px;margin-top:10px}
+.field{display:block;color:var(--muted);font-size:13px;font-weight:650}
+.field input{display:block;width:100%;min-width:0;margin-top:7px;padding:12px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);color:var(--ink);font:inherit;font-size:16px;color-scheme:inherit}
+.countdown-display{text-align:center;font-variant-numeric:tabular-nums;margin:23px 0 8px}
+.countdown-main{font-size:clamp(31px,8vw,48px);font-weight:700;line-height:1.35}
+.countdown-units{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:15px}
+.unit{padding:10px 4px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);text-align:center}
+.unit strong{display:block;font-size:25px;color:var(--accent)}.unit small{font-size:11px;color:var(--muted)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+button{font:inherit;cursor:pointer;transition:background-color .2s,color .2s,border-color .2s,transform .15s}
+button:active{transform:scale(.98) translateY(1px)}
+.primary,.secondary,.danger{padding:12px 17px;border-radius:10px;font-weight:700}
+.primary{border:0;background:var(--accent);color:white}.secondary{border:1px solid var(--control-border);background:var(--input);color:var(--ink)}.danger{border:1px solid #dc3545;background:#dc3545;color:#fff}
+.stopwatch-time{text-align:center;font-size:clamp(45px,12vw,66px);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em;margin:13px 0 18px}
+.lap-heading{display:flex;justify-content:space-between;align-items:center;margin:23px 0 9px;font-size:14px;font-weight:700}
+.lap-list{list-style:none;padding:0;margin:0;max-height:260px;overflow:auto;border-top:1px solid var(--line)}
+.lap-list li{display:grid;grid-template-columns:45px 1fr 1fr;gap:8px;padding:10px 3px;border-bottom:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
+.lap-list li span:last-child{text-align:right}.lap-list .best{color:#4b9b79}.lap-list .worst{color:#d17b58}
+.empty{color:var(--muted);font-size:12px;text-align:center;padding:16px 0}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+footer{font-size:11px;padding:10px 3px}
+@media(max-width:390px){h1{font-size:26px}.card{padding:17px 14px}.tab{font-size:12px}.countdown-units{gap:5px}.unit strong{font-size:22px}.actions button{flex:1}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+</style>
+</head>
+<body><main>
+<header>
+<div class="topbar">
+<a class="brand" href="https://niyaaari.github.io/" aria-label="kubearma サービス一覧へ">
+<svg class="brand-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.581 9.986a.27.27 0 0 0-.291-.355l-5.055.72a.27.27 0 0 0-.229.326a.27.27 0 0 0 .07.13l3.6 3.716a.266.266 0 0 0 .378.013a.3.3 0 0 0 .071-.12zM6.745 20.393a.265.265 0 0 0 .376.317l4.727-2.244a.27.27 0 0 1 .222 0l4.94 2.24a.27.27 0 0 0 .365-.334c-.932-2.806-1.774-5.58-2.674-8.38a.265.265 0 0 0-.476-.053l-1.996 3.578a.27.27 0 0 1-.238.138h-.085a.26.26 0 0 1-.232-.143L9.736 11.95a.27.27 0 0 0-.233-.143h-.026a.265.265 0 0 0-.26.19a244 244 0 0 0-2.472 8.396m10.093-6.056a.264.264 0 0 0 .445.106l3.636-3.636a.271.271 0 0 0-.153-.461l-5.029-.704a.27.27 0 0 0-.296.35z"/><path fill="currentColor" d="M14.024 9.551a.32.32 0 0 0 0-.248l-.027-.064l-1.784-5.78a.265.265 0 0 0-.513 0l-1.747 5.78l-.026.085a.3.3 0 0 0 .01.201l1.731 3.991a.28.28 0 0 0 .244.16h.063a.27.27 0 0 0 .244-.16l1.8-3.965z"/></svg>
+<span>kubearma</span></a>
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="ナイトモードに切り替え"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+</div>
+<h1>時計くん</h1><p class="sub">時計・カウントダウン・ストップウォッチをシンプルに。</p>
+</header>
+<nav class="tabs" role="tablist" aria-label="時計機能">
+<button class="tab" id="tab-clock" role="tab" aria-selected="true" aria-controls="panel-clock">時計</button>
+<button class="tab" id="tab-countdown" role="tab" aria-selected="false" aria-controls="panel-countdown">カウントダウン</button>
+<button class="tab" id="tab-stopwatch" role="tab" aria-selected="false" aria-controls="panel-stopwatch">ストップウォッチ</button>
+</nav>
+<section class="card panel" id="panel-clock" role="tabpanel" aria-labelledby="tab-clock">
+<h2>01　リアルタイム時計</h2>
+<div class="clock-date" id="clockDate">----</div>
+<div class="digital" id="clockTime">00:00:00</div>
+<p class="clock-caption">現在の時刻</p>
+</section>
+<section class="card panel" id="panel-countdown" role="tabpanel" aria-labelledby="tab-countdown" hidden>
+<h2>02　カウントダウン</h2>
+<label class="field" for="targetDate">目標日時<input id="targetDate" type="datetime-local"></label>
+<div class="countdown-display" aria-live="off">
+<div class="countdown-main" id="countdownMain">日時を設定してください</div>
+<div class="countdown-units" id="countdownUnits" hidden>
+<div class="unit"><strong id="days">0</strong><small>日</small></div>
+<div class="unit"><strong id="hours">00</strong><small>時間</small></div>
+<div class="unit"><strong id="minutes">00</strong><small>分</small></div>
+<div class="unit"><strong id="seconds">00</strong><small>秒</small></div>
+</div>
+</div>
+<p class="hint" id="countdownHint">目標日時を選択すると、残り時間を表示します。</p>
+<div class="actions"><button class="secondary" id="clearTarget" type="button">日時をクリア</button></div>
+</section>
+<section class="card panel" id="panel-stopwatch" role="tabpanel" aria-labelledby="tab-stopwatch" hidden>
+<h2>03　ストップウォッチ</h2>
+<div class="stopwatch-time" id="stopwatchTime">00:00.00</div>
+<div class="actions">
+<button class="primary" id="startStopwatch" type="button">スタート</button>
+<button class="secondary" id="lapStopwatch" type="button" disabled>ラップ</button>
+<button class="secondary" id="resetStopwatch" type="button">リセット</button>
+</div>
+<div class="lap-heading"><span>ラップタイム</span><span id="lapCount">0件</span></div>
+<ol class="lap-list" id="lapList"><li class="empty">ラップはまだありません</li></ol>
+</section>
+<footer>© kubearma</footer>
+</main>
+<script>
+const root=document.documentElement,themeToggle=document.getElementById('themeToggle');
+function applyTheme(theme){root.dataset.theme=theme;try{localStorage.setItem('pantaro_theme',theme)}catch(e){}themeToggle.innerHTML=theme==='dark'?'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';themeToggle.setAttribute('aria-label',theme==='dark'?'ライトモードに切り替え':'ナイトモードに切り替え')}
+let initial='light';try{initial=localStorage.getItem('pantaro_theme')||'light'}catch(e){}applyTheme(initial);
+themeToggle.addEventListener('click',()=>applyTheme(root.dataset.theme==='dark'?'light':'dark'));
+// タブ切り替え
+const tabs=[...document.querySelectorAll('.tab')],panels=[...document.querySelectorAll('.panel')];
+function selectTab(id){tabs.forEach(t=>{const active=t.id==='tab-'+id;t.setAttribute('aria-selected',String(active));t.tabIndex=active?0:-1});panels.forEach(p=>p.hidden=p.id!=='panel-'+id)}
+tabs.forEach((tab,i)=>{tab.addEventListener('click',()=>selectTab(tab.id.replace('tab-','')));tab.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=(i+(e.key==='ArrowRight'?1:2))%3;tabs[next].focus();tabs[next].click()}})});
+selectTab('clock');
+// リアルタイム時計
+const pad=n=>String(n).padStart(2,'0');
+function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);document.getElementById('clockTime').textContent=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())}
+updateClock();setInterval(updateClock,200);
+// カウントダウン
+const targetDate=document.getElementById('targetDate'),countdownMain=document.getElementById('countdownMain'),countdownUnits=document.getElementById('countdownUnits'),countdownHint=document.getElementById('countdownHint');
+try{const saved=localStorage.getItem('kubearma_clock_target');if(saved)targetDate.value=saved}catch(e){}
+function updateCountdown(){if(!targetDate.value){countdownMain.textContent='日時を設定してください';countdownUnits.hidden=true;countdownHint.textContent='目標日時を選択すると、残り時間を表示します。';return}
+const target=new Date(targetDate.value).getTime();if(!Number.isFinite(target)){countdownMain.textContent='日時を確認してください';countdownUnits.hidden=true;return}
+const diff=target-Date.now();if(diff<=0){countdownMain.textContent='時間になりました！';countdownUnits.hidden=true;countdownHint.textContent='設定した日時を過ぎています。';return}
+const totalSeconds=Math.floor(diff/1000),days=Math.floor(totalSeconds/86400),hours=Math.floor(totalSeconds%86400/3600),minutes=Math.floor(totalSeconds%3600/60),seconds=totalSeconds%60;
+countdownMain.textContent='あと';countdownUnits.hidden=false;document.getElementById('days').textContent=days.toLocaleString('ja-JP');document.getElementById('hours').textContent=pad(hours);document.getElementById('minutes').textContent=pad(minutes);document.getElementById('seconds').textContent=pad(seconds);countdownHint.textContent=new Date(target).toLocaleString('ja-JP')+' まで'}
+targetDate.addEventListener('input',()=>{try{localStorage.setItem('kubearma_clock_target',targetDate.value)}catch(e){}updateCountdown()});
+document.getElementById('clearTarget').addEventListener('click',()=>{targetDate.value='';try{localStorage.removeItem('kubearma_clock_target')}catch(e){}updateCountdown()});
+updateCountdown();setInterval(updateCountdown,200);
+// ストップウォッチ：performance.now()基準でタブ復帰後も経過時間を正確に算出
+let running=false,startAt=0,elapsed=0,laps=[],raf=0;
+const swTime=document.getElementById('stopwatchTime'),startBtn=document.getElementById('startStopwatch'),lapBtn=document.getElementById('lapStopwatch'),resetBtn=document.getElementById('resetStopwatch'),lapList=document.getElementById('lapList'),lapCount=document.getElementById('lapCount');
+function currentElapsed(){return elapsed+(running?performance.now()-startAt:0)}
+function formatStopwatch(ms){const cs=Math.floor(ms/10),minutes=Math.floor(cs/6000),seconds=Math.floor(cs%6000/100),centiseconds=cs%100;return pad(minutes)+':'+pad(seconds)+'.'+pad(centiseconds)}
+function renderStopwatch(){swTime.textContent=formatStopwatch(currentElapsed());if(running)raf=requestAnimationFrame(renderStopwatch)}
+function renderLaps(){lapCount.textContent=laps.length+'件';if(!laps.length){lapList.innerHTML='<li class="empty">ラップはまだありません</li>';return}
+const best=Math.min(...laps.map(x=>x.split)),worst=Math.max(...laps.map(x=>x.split));lapList.innerHTML=laps.map((lap,i)=>'<li class="'+(laps.length>1&&lap.split===best?'best':laps.length>1&&lap.split===worst?'worst':'')+'"><span>#'+(laps.length-i)+'</span><span>'+formatStopwatch(lap.total)+'</span><span>+'+formatStopwatch(lap.split)+'</span></li>').join('')}
+startBtn.addEventListener('click',()=>{if(!running){running=true;startAt=performance.now();startBtn.textContent='一時停止';lapBtn.disabled=false;cancelAnimationFrame(raf);renderStopwatch()}else{elapsed=currentElapsed();running=false;startBtn.textContent='再開';lapBtn.disabled=true;cancelAnimationFrame(raf);renderStopwatch()}});
+lapBtn.addEventListener('click',()=>{if(!running)return;const total=currentElapsed(),previous=laps.length?laps[0].total:0;laps.unshift({total,split:total-previous});renderLaps()});
+resetBtn.addEventListener('click',()=>{running=false;elapsed=0;startAt=0;laps=[];cancelAnimationFrame(raf);startBtn.textContent='スタート';lapBtn.disabled=true;renderStopwatch();renderLaps()});
+renderStopwatch();renderLaps();
+</script>
+</body></html>
