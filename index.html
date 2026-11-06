@@ -34,9 +34,24 @@ h2{font-size:16px;margin:0 0 15px}
 .clock-date{text-align:center;color:var(--muted);font-size:14px;margin:3px 0 12px}
 .digital{text-align:center;font-size:clamp(42px,12vw,68px);font-weight:700;letter-spacing:.025em;line-height:1.3;font-variant-numeric:tabular-nums;white-space:nowrap}
 .clock-caption{text-align:center;color:var(--muted);font-size:12px;margin-top:10px}
+@media (orientation:landscape){main{max-width:900px}.card:has(#clockTime){padding:30px 24px}.clock-date{font-size:17px;margin-bottom:14px}.digital{font-size:clamp(64px,12vw,128px);letter-spacing:.045em;line-height:1.2}.clock-caption{font-size:14px;margin-top:14px}}
 .field{display:block;color:var(--muted);font-size:13px;font-weight:650}
 .field input{display:block;width:100%;min-width:0;margin-top:7px;padding:12px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);color:var(--ink);font:inherit;font-size:16px;color-scheme:inherit}
-.countdown-display{text-align:center;font-variant-numeric:tabular-nums;margin:23px 0 8px}
+.countdown-display{text-align:center;font-variant-numeric:tabular-nums;margin:18px 0 8px}
+.countdown-empty{font-size:15px;font-weight:500;color:var(--muted);padding:10px 0}
+.countdown-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:end}
+.countdown-form .field{min-width:0}.countdown-form .field input{font-size:14px;padding:10px}
+.countdown-list{display:grid;gap:18px;margin-top:22px}
+.countdown-item{padding:15px 13px;border:1px solid var(--control-border);border-radius:12px;background:var(--card);min-width:0}
+.countdown-item-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.countdown-name{font-size:15px;font-weight:700;overflow-wrap:anywhere}
+.countdown-delete{border:1px solid var(--control-border);border-radius:8px;background:var(--input);color:var(--muted);padding:6px 10px;font-size:12px;flex:none}
+.countdown-target{font-size:11px;color:var(--muted);text-align:center;margin-bottom:7px}
+.countdown-item .countdown-main{font-size:clamp(25px,6vw,38px);font-weight:700;line-height:1.35}
+.countdown-item .countdown-units{margin-top:10px}
+.countdown-item .unit{padding:7px 3px}.countdown-item .unit strong{font-size:21px}
+.countdown-item .countdown-expired{font-size:17px;color:var(--accent);font-weight:700;text-align:center;padding:14px 0}
+@media(max-width:480px){.countdown-form{grid-template-columns:1fr}.countdown-form .actions{margin-top:0}}
 .countdown-main{font-size:clamp(31px,8vw,48px);font-weight:700;line-height:1.35}
 .countdown-units{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:15px}
 .unit{padding:10px 4px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);text-align:center}
@@ -81,18 +96,13 @@ footer{font-size:11px;padding:10px 3px}
 </section>
 <section class="card panel" id="panel-countdown" role="tabpanel" aria-labelledby="tab-countdown" hidden>
 <h2>02　カウントダウン</h2>
+<div class="countdown-form">
+<label class="field" for="countdownName">名前（任意）<input id="countdownName" type="text" maxlength="40" placeholder="例：テストまで"></label>
 <label class="field" for="targetDate">目標日時<input id="targetDate" type="datetime-local"></label>
-<div class="countdown-display" aria-live="off">
-<div class="countdown-main" id="countdownMain">日時を設定してください</div>
-<div class="countdown-units" id="countdownUnits" hidden>
-<div class="unit"><strong id="days">0</strong><small>日</small></div>
-<div class="unit"><strong id="hours">00</strong><small>時間</small></div>
-<div class="unit"><strong id="minutes">00</strong><small>分</small></div>
-<div class="unit"><strong id="seconds">00</strong><small>秒</small></div>
+<div class="actions"><button class="primary" id="addCountdown" type="button">＋ カウントダウンを追加</button></div>
 </div>
-</div>
-<p class="hint" id="countdownHint">目標日時を選択すると、残り時間を表示します。</p>
-<div class="actions"><button class="secondary" id="clearTarget" type="button">日時をクリア</button></div>
+<p class="hint" id="countdownHint">名前と目標日時を設定して追加できます。複数の予定を登録できます。</p>
+<div class="countdown-list" id="countdownList" aria-live="off"></div>
 </section>
 <section class="card panel" id="panel-stopwatch" role="tabpanel" aria-labelledby="tab-stopwatch" hidden>
 <h2>03　ストップウォッチ</h2>
@@ -121,17 +131,57 @@ selectTab('clock');
 const pad=n=>String(n).padStart(2,'0');
 function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);document.getElementById('clockTime').textContent=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())}
 updateClock();setInterval(updateClock,200);
-// カウントダウン
-const targetDate=document.getElementById('targetDate'),countdownMain=document.getElementById('countdownMain'),countdownUnits=document.getElementById('countdownUnits'),countdownHint=document.getElementById('countdownHint');
-try{const saved=localStorage.getItem('kubearma_clock_target');if(saved)targetDate.value=saved}catch(e){}
-function updateCountdown(){if(!targetDate.value){countdownMain.textContent='日時を設定してください';countdownUnits.hidden=true;countdownHint.textContent='目標日時を選択すると、残り時間を表示します。';return}
-const target=new Date(targetDate.value).getTime();if(!Number.isFinite(target)){countdownMain.textContent='日時を確認してください';countdownUnits.hidden=true;return}
-const diff=target-Date.now();if(diff<=0){countdownMain.textContent='時間になりました！';countdownUnits.hidden=true;countdownHint.textContent='設定した日時を過ぎています。';return}
-const totalSeconds=Math.floor(diff/1000),days=Math.floor(totalSeconds/86400),hours=Math.floor(totalSeconds%86400/3600),minutes=Math.floor(totalSeconds%3600/60),seconds=totalSeconds%60;
-countdownMain.textContent='あと';countdownUnits.hidden=false;document.getElementById('days').textContent=days.toLocaleString('ja-JP');document.getElementById('hours').textContent=pad(hours);document.getElementById('minutes').textContent=pad(minutes);document.getElementById('seconds').textContent=pad(seconds);countdownHint.textContent=new Date(target).toLocaleString('ja-JP')+' まで'}
-targetDate.addEventListener('input',()=>{try{localStorage.setItem('kubearma_clock_target',targetDate.value)}catch(e){}updateCountdown()});
-document.getElementById('clearTarget').addEventListener('click',()=>{targetDate.value='';try{localStorage.removeItem('kubearma_clock_target')}catch(e){}updateCountdown()});
-updateCountdown();setInterval(updateCountdown,200);
+// 複数カウントダウン
+const targetDate=document.getElementById('targetDate'),countdownName=document.getElementById('countdownName'),countdownList=document.getElementById('countdownList');
+let countdowns=[];
+try{
+ const saved=JSON.parse(localStorage.getItem('kubearma_clock_countdowns')||'null');
+ if(Array.isArray(saved))countdowns=saved.filter(x=>x&&typeof x.id==='string'&&typeof x.target==='string');
+ else{const old=localStorage.getItem('kubearma_clock_target');if(old)countdowns=[{id:'legacy-'+Date.now(),name:'カウントダウン',target:old}]}
+}catch(e){}
+function saveCountdowns(){try{localStorage.setItem('kubearma_clock_countdowns',JSON.stringify(countdowns));localStorage.removeItem('kubearma_clock_target')}catch(e){}}
+function makeUnit(label,id){const box=document.createElement('div');box.className='unit';const strong=document.createElement('strong');strong.id=id;strong.textContent='0';const small=document.createElement('small');small.textContent=label;box.append(strong,small);return box}
+function renderCountdowns(){
+ countdownList.replaceChildren();
+ if(!countdowns.length){const empty=document.createElement('div');empty.className='countdown-empty';empty.textContent='登録されたカウントダウンはありません';countdownList.append(empty);return}
+ countdowns.forEach(item=>{
+  const card=document.createElement('article');card.className='countdown-item';card.dataset.id=item.id;
+  const head=document.createElement('div');head.className='countdown-item-head';
+  const name=document.createElement('div');name.className='countdown-name';name.textContent=item.name||'カウントダウン';
+  const del=document.createElement('button');del.type='button';del.className='countdown-delete';del.textContent='削除';del.setAttribute('aria-label',(item.name||'カウントダウン')+'を削除');
+  del.addEventListener('click',()=>{countdowns=countdowns.filter(x=>x.id!==item.id);saveCountdowns();renderCountdowns()});
+  head.append(name,del);
+  const target=document.createElement('div');target.className='countdown-target';target.textContent=new Date(item.target).toLocaleString('ja-JP')+' まで';
+  const display=document.createElement('div');display.className='countdown-display';
+  const main=document.createElement('div');main.className='countdown-main';main.textContent='日時を確認しています';
+  const units=document.createElement('div');units.className='countdown-units';
+  const prefix=item.id.replace(/[^a-zA-Z0-9_-]/g,'');
+  units.append(makeUnit('日',prefix+'-days'),makeUnit('時間',prefix+'-hours'),makeUnit('分',prefix+'-minutes'),makeUnit('秒',prefix+'-seconds'));
+  display.append(main,units);card.append(head,target,display);countdownList.append(card);
+ });
+ updateCountdowns();
+}
+function updateCountdowns(){
+ countdowns.forEach(item=>{
+  const card=countdownList.querySelector('[data-id="'+CSS.escape(item.id)+'"]');if(!card)return;
+  const main=card.querySelector('.countdown-main'),units=card.querySelector('.countdown-units');
+  const target=new Date(item.target).getTime();
+  if(!Number.isFinite(target)){main.textContent='日時を確認してください';units.hidden=true;return}
+  const diff=target-Date.now();
+  if(diff<=0){main.className='countdown-expired';main.textContent='時間になりました！';units.hidden=true;return}
+  main.className='countdown-main';main.textContent='あと';units.hidden=false;
+  const total=Math.floor(diff/1000),values=[Math.floor(total/86400),Math.floor(total%86400/3600),Math.floor(total%3600/60),total%60];
+  ['days','hours','minutes','seconds'].forEach((key,i)=>{const el=card.querySelector('[id$="-'+key+'"]');if(el)el.textContent=i===0?values[i].toLocaleString('ja-JP'):pad(values[i])});
+ });
+}
+document.getElementById('addCountdown').addEventListener('click',()=>{
+ if(!targetDate.value){targetDate.focus();return}
+ const target=new Date(targetDate.value).getTime();if(!Number.isFinite(target)){targetDate.focus();return}
+ const name=countdownName.value.trim()||'カウントダウン '+(countdowns.length+1);
+ countdowns.push({id:'cd-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name,target:targetDate.value});
+ saveCountdowns();countdownName.value='';targetDate.value='';renderCountdowns();
+});
+renderCountdowns();setInterval(updateCountdowns,200);
 // ストップウォッチ：performance.now()基準でタブ復帰後も経過時間を正確に算出
 let running=false,startAt=0,elapsed=0,laps=[],raf=0;
 const swTime=document.getElementById('stopwatchTime'),startBtn=document.getElementById('startStopwatch'),lapBtn=document.getElementById('lapStopwatch'),resetBtn=document.getElementById('resetStopwatch'),lapList=document.getElementById('lapList'),lapCount=document.getElementById('lapCount');
