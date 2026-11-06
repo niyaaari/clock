@@ -154,7 +154,7 @@ const tabs=[...document.querySelectorAll('.tab')],panels=[...document.querySelec
 function selectTab(id){tabs.forEach(t=>{const active=t.id==='tab-'+id;t.setAttribute('aria-selected',String(active));t.tabIndex=active?0:-1});panels.forEach(p=>p.hidden=p.id!=='panel-'+id)}
 tabs.forEach((tab,i)=>{tab.addEventListener('click',()=>selectTab(tab.id.replace('tab-','')));tab.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const next=(i+(e.key==='ArrowRight'?1:2))%3;tabs[next].focus();tabs[next].click()}})});
 selectTab('clock');
-// 時計デザイン切り替え・Pixel Flow
+// 時計デザイン切り替え・Pixel Flow（数字ごとの縦スライド）
 const simpleClockView=document.getElementById('simpleClockView');
 const pixelClockView=document.getElementById('pixelClockView');
 const designButtons=[...document.querySelectorAll('.clock-design-button')];
@@ -164,52 +164,79 @@ designButtons.forEach(button=>button.addEventListener('click',()=>{
  simpleClockView.hidden=clockDesign!=='simple';
  pixelClockView.hidden=clockDesign!=='pixel';
  designButtons.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
- if(clockDesign==='pixel'){resizePixelCanvas();drawPixelClock(lastClockText)}
+ if(clockDesign==='pixel'){resizePixelCanvas();setPixelTime(lastClockText,true)}
 }));
 const pixelCanvas=document.getElementById('pixelClockCanvas');
 const pixelCtx=pixelCanvas.getContext('2d');
-const sampleCanvas=document.createElement('canvas');
-const sampleCtx=sampleCanvas.getContext('2d',{willReadFrequently:true});
-let pixelParticles=[],pixelShape='square',pixelFrame=0,lastClockText='00:00:00',pixelPointer=null,pixelScatterPower=0;
+let pixelGroups=[],pixelShape='square',lastClockText='00:00:00',pixelPointer=null;
+const PIXEL_STEP=7,SLIDE_MS=260;
 function resizePixelCanvas(){
  const rect=pixelCanvas.getBoundingClientRect();if(!rect.width||!rect.height)return;
  const dpr=Math.min(window.devicePixelRatio||1,2);
  pixelCanvas.width=Math.round(rect.width*dpr);pixelCanvas.height=Math.round(rect.height*dpr);
  pixelCtx.setTransform(dpr,0,0,dpr,0,0);
- drawPixelClock(lastClockText);
+ setPixelTime(lastClockText,true);
 }
-function drawPixelClock(text){
- const rect=pixelCanvas.getBoundingClientRect(),w=rect.width,h=rect.height;if(!w||!h)return;
- const spacing=7,off=document.createElement('canvas');off.width=Math.ceil(w);off.height=Math.ceil(h);
+function pixelGlyph(char,cellWidth,h,fontSize){
+ const off=document.createElement('canvas');off.width=Math.max(1,Math.ceil(cellWidth));off.height=Math.max(1,Math.ceil(h));
  const ctx=off.getContext('2d',{willReadFrequently:true});
- let fontSize=Math.min(h*.48,w/(text.length*.62));
  ctx.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif';
- while(ctx.measureText(text).width>w*.92&&fontSize>18){fontSize-=2;ctx.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif'}
- ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(text,w/2,h/2);
- const pixels=ctx.getImageData(0,0,off.width,off.height).data,targets=[];
- for(let y=0;y<h;y+=spacing){for(let x=0;x<w;x+=spacing){if(pixels[(Math.floor(y)*off.width+Math.floor(x))*4+3]>100)targets.push({x:x+spacing/2,y:y+spacing/2})}}
- const old=pixelParticles;pixelParticles=targets.map((p,i)=>{const previous=old[i];return{x:previous?previous.x:p.x,y:previous?previous.y:p.y,vx:0,vy:0,tx:p.x,ty:p.y}});
+ ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(char,cellWidth/2,h/2);
+ const data=ctx.getImageData(0,0,off.width,off.height).data,points=[];
+ for(let y=0;y<h;y+=PIXEL_STEP)for(let x=0;x<cellWidth;x+=PIXEL_STEP){
+  if(data[(Math.floor(y)*off.width+Math.floor(x))*4+3]>100)points.push({x:x+PIXEL_STEP/2,y:y+PIXEL_STEP/2});
+ }
+ return points;
+}
+function setPixelTime(text,instant=false){
+ const rect=pixelCanvas.getBoundingClientRect(),w=rect.width,h=rect.height;if(!w||!h)return;
+ const fontSize=Math.min(h*.48,w/(text.length*.62)),measure=document.createElement('canvas').getContext('2d');
+ measure.font='700 '+fontSize+'px "GenEi M Gothic", system-ui, sans-serif';
+ const widths=[...text].map(c=>measure.measureText(c).width),total=widths.reduce((a,b)=>a+b,0);
+ const scale=Math.min(1,w*.92/total),cellWidths=widths.map(v=>v*scale),font=fontSize*scale;
+ let x=(w-total*scale)/2,now=performance.now();
+ const next=[...text].map((char,i)=>{
+  const cellWidth=cellWidths[i],glyph=pixelGlyph(char,cellWidth,h,font);
+  const group=pixelGroups[i];
+  if(!group||instant||group.char===char)return {char,x,cellWidth,glyph,oldGlyph:null,changedAt:0};
+  return {char,x,cellWidth,glyph,oldGlyph:group.glyph,changedAt:now};
+ }).map((g,i)=>{g.x=(w-total*scale)/2+cellWidths.slice(0,i).reduce((a,b)=>a+b,0);return g});
+ pixelGroups=next;
 }
 function setPixelShape(shape){pixelShape=shape;document.querySelectorAll('.pixel-shape-button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shape===shape)))}
 document.querySelectorAll('.pixel-shape-button').forEach(b=>b.addEventListener('click',()=>setPixelShape(b.dataset.shape)));
 document.getElementById('pixelScatter').addEventListener('click',()=>{
- pixelParticles.forEach(p=>{const a=Math.random()*Math.PI*2,s=5+Math.random()*12;p.vx+=Math.cos(a)*s;p.vy+=Math.sin(a)*s});
- pixelScatterPower=1;
+ pixelGroups.forEach(g=>{g.scatterUntil=performance.now()+650;g.scatterSeed=Math.random()*Math.PI*2});
 });
+function drawGlyph(points,x,y,offset,color,scatter=0,seed=0){
+ pixelCtx.fillStyle=color;
+ points.forEach((p,i)=>{
+  let dx=0,dy=0;
+  if(scatter){const a=seed+i*2.399;dx=Math.cos(a)*scatter;dy=Math.sin(a)*scatter}
+  if(pixelPointer){
+   const px=x+p.x,py=y+p.y+offset,ddx=px-pixelPointer.x,ddy=py-pixelPointer.y,d=Math.hypot(ddx,ddy)||1;
+   if(d<85){const force=(85-d)/85*9;dx+=ddx/d*force;dy+=ddy/d*force}
+  }
+  const px=x+p.x+dx,py=y+p.y+offset+dy;
+  if(pixelShape==='circle'){pixelCtx.beginPath();pixelCtx.arc(px,py,2.2,0,Math.PI*2);pixelCtx.fill()}
+  else if(pixelShape==='cross'){pixelCtx.fillRect(px-1,py-3,2,6);pixelCtx.fillRect(px-3,py-1,6,2)}
+  else pixelCtx.fillRect(px-2,py-2,4,4);
+ });
+}
 function pixelLoop(){
- const rect=pixelCanvas.getBoundingClientRect(),w=rect.width,h=rect.height;
+ const rect=pixelCanvas.getBoundingClientRect(),w=rect.width,h=rect.height,now=performance.now();
  if(w&&h&&!pixelClockView.hidden){
   pixelCtx.clearRect(0,0,w,h);const color=getComputedStyle(root).getPropertyValue('--ink').trim()||'#6C4732';
-  pixelCtx.fillStyle=color;
-  pixelParticles.forEach(p=>{
-   if(pixelPointer){const dx=p.x-pixelPointer.x,dy=p.y-pixelPointer.y,d=Math.hypot(dx,dy)||1;if(d<105){const force=(105-d)/105*.9;p.vx+=dx/d*force;p.vy+=dy/d*force}}
-   p.vx+=(p.tx-p.x)*.035;p.vy+=(p.ty-p.y)*.035;p.vx*=.86;p.vy*=.86;p.x+=p.vx;p.y+=p.vy;
-   if(pixelShape==='circle'){pixelCtx.beginPath();pixelCtx.arc(p.x,p.y,2.2,0,Math.PI*2);pixelCtx.fill()}
-   else if(pixelShape==='cross'){pixelCtx.fillRect(p.x-1,p.y-3,2,6);pixelCtx.fillRect(p.x-3,p.y-1,6,2)}
-   else{pixelCtx.fillRect(p.x-2,p.y-2,4,4)}
+  pixelGroups.forEach(g=>{
+   const progress=g.changedAt?Math.min(1,(now-g.changedAt)/SLIDE_MS):1;
+   const eased=1-Math.pow(1-progress,3);
+   const scatter=g.scatterUntil&&now<g.scatterUntil?((g.scatterUntil-now)/650)*7:0;
+   if(g.oldGlyph&&progress<1)drawGlyph(g.oldGlyph,g.x,h*.26-eased*h*.72,color,scatter,g.scatterSeed||0);
+   drawGlyph(g.glyph,g.x,h*.26+(g.oldGlyph?(1-eased)*h*.72:0),color,scatter,g.scatterSeed||0);
+   if(progress>=1){g.oldGlyph=null;g.changedAt=0}
   });
  }
- pixelFrame=requestAnimationFrame(pixelLoop);
+ requestAnimationFrame(pixelLoop);
 }
 function setPixelPointer(e){const r=pixelCanvas.getBoundingClientRect();pixelPointer={x:e.clientX-r.left,y:e.clientY-r.top}}
 pixelCanvas.addEventListener('pointermove',setPixelPointer);
@@ -221,8 +248,7 @@ window.addEventListener('resize',()=>{if(clockDesign==='pixel')resizePixelCanvas
 pixelLoop();
 // リアルタイム時計
 const pad=n=>String(n).padStart(2,'0');
-function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);lastClockText=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());document.getElementById('clockTime').textContent=lastClockText;if(clockDesign==='pixel'&&now.getSeconds()!==lastPixelSecond){lastPixelSecond=now.getSeconds();drawPixelClock(lastClockText)}}
-let lastPixelSecond=-1;
+function updateClock(){const now=new Date();document.getElementById('clockDate').textContent=new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'}).format(now);const nextText=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());document.getElementById('clockTime').textContent=nextText;if(nextText!==lastClockText){lastClockText=nextText;if(clockDesign==='pixel')setPixelTime(lastClockText)}}
 updateClock();setInterval(updateClock,200);
 // 複数カウントダウン
 const targetDate=document.getElementById('targetDate'),countdownName=document.getElementById('countdownName'),countdownList=document.getElementById('countdownList');
