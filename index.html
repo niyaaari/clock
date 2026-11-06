@@ -19,15 +19,16 @@ body{margin:0;min-height:100vh;padding:26px 15px 42px;color:var(--ink);font-fami
 main{max-width:600px;margin:auto}
 header{margin:0 0 22px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:750;letter-spacing:.12em;color:var(--accent);text-decoration:none}.brand-mark{display:block;width:20px;height:20px;flex:none}
-.theme-toggle{position:relative;display:block;width:68px;height:38px;padding:0;border:1px solid var(--control-border);border-radius:999px;background:linear-gradient(135deg,#f7d98b,#f2b96c);color:#6C4732;cursor:pointer;overflow:hidden;box-shadow:inset 0 1px 3px rgba(80,55,30,.12);transition:background .45s ease,border-color .3s ease}
-.theme-toggle .toggle-orb{position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#fff8e8;color:#d28b32;box-shadow:0 2px 6px rgba(70,48,25,.2);transition:transform .45s cubic-bezier(.2,.8,.2,1),background .35s ease,color .35s ease}
-.theme-toggle .toggle-orb svg{position:absolute;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transition:opacity .25s ease,transform .4s ease}
-.theme-toggle .sun-icon{opacity:1;transform:rotate(0) scale(1)}
-.theme-toggle .moon-icon{opacity:0;transform:rotate(-45deg) scale(.5)}
-:root[data-theme="dark"] .theme-toggle{background:linear-gradient(135deg,#29344f,#171b2d);border-color:#596170}
-:root[data-theme="dark"] .theme-toggle .toggle-orb{transform:translateX(30px);background:#dce6ff;color:#45577d}
-:root[data-theme="dark"] .theme-toggle .sun-icon{opacity:0;transform:rotate(45deg) scale(.5)}
-:root[data-theme="dark"] .theme-toggle .moon-icon{opacity:1;transform:rotate(0) scale(1)}
+.theme-toggle{position:relative;display:grid;place-items:center;width:42px;height:42px;padding:0;border:1px solid var(--control-border);border-radius:50%;background:var(--input);color:var(--accent);cursor:pointer;overflow:hidden;box-shadow:0 2px 8px rgba(40,30,20,.07);transition:background .5s ease,border-color .5s ease,color .5s ease,box-shadow .5s ease,transform .25s ease}
+.theme-toggle:hover{box-shadow:0 4px 13px rgba(40,30,20,.13);transform:translateY(-1px)}
+.theme-toggle:active{transform:scale(.92)}
+.theme-toggle .toggle-orb{position:absolute;inset:0;display:grid;place-items:center}
+.theme-toggle .toggle-orb svg{position:absolute;width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;transition:opacity .48s ease,transform .65s cubic-bezier(.2,.75,.25,1),filter .48s ease}
+.theme-toggle .sun-icon{opacity:1;transform:rotate(0) scale(1);filter:blur(0)}
+.theme-toggle .moon-icon{opacity:0;transform:rotate(-100deg) scale(.35);filter:blur(3px)}
+:root[data-theme="dark"] .theme-toggle{background:rgba(145,170,255,.12);border-color:rgba(145,170,255,.35);color:#cbd8ff;box-shadow:0 2px 10px rgba(0,0,0,.16)}
+:root[data-theme="dark"] .theme-toggle .sun-icon{opacity:0;transform:rotate(100deg) scale(.35);filter:blur(3px)}
+:root[data-theme="dark"] .theme-toggle .moon-icon{opacity:1;transform:rotate(0) scale(1);filter:blur(0)}
 h1{font-size:30px;margin:7px 0}.sub,.hint,footer{color:var(--muted);font-size:13px;line-height:1.7}
 .card{position:relative;isolation:isolate;margin:17px 0;padding:20px 18px;border:0;border-radius:0;background:transparent;box-shadow:none}
 .card:before,.card:after{content:"";position:absolute;pointer-events:none;z-index:0;transition:all .32s ease-out}
@@ -87,7 +88,7 @@ footer{font-size:11px;padding:10px 3px}
 <a class="brand" href="https://niyaaari.github.io/" aria-label="kubearma サービス一覧へ">
 <svg class="brand-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.581 9.986a.27.27 0 0 0-.291-.355l-5.055.72a.27.27 0 0 0-.229.326a.27.27 0 0 0 .07.13l3.6 3.716a.266.266 0 0 0 .378.013a.3.3 0 0 0 .071-.12zM6.745 20.393a.265.265 0 0 0 .376.317l4.727-2.244a.27.27 0 0 1 .222 0l4.94 2.24a.27.27 0 0 0 .365-.334c-.932-2.806-1.774-5.58-2.674-8.38a.265.265 0 0 0-.476-.053l-1.996 3.578a.27.27 0 0 1-.238.138h-.085a.26.26 0 0 1-.232-.143L9.736 11.95a.27.27 0 0 0-.233-.143h-.026a.265.265 0 0 0-.26.19a244 244 0 0 0-2.472 8.396m10.093-6.056a.264.264 0 0 0 .445.106l3.636-3.636a.271.271 0 0 0-.153-.461l-5.029-.704a.27.27 0 0 0-.296.35z"/><path fill="currentColor" d="M14.024 9.551a.32.32 0 0 0 0-.248l-.027-.064l-1.784-5.78a.265.265 0 0 0-.513 0l-1.747 5.78l-.026.085a.3.3 0 0 0 .01.201l1.731 3.991a.28.28 0 0 0 .244.16h.063a.27.27 0 0 0 .244-.16l1.8-3.965z"/></svg>
 <span>kubearma</span></a>
-<button class="theme-toggle" id="themeToggle" type="button" aria-label="ナイトモードに切り替え" aria-pressed="false">
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="ナイトモードに切り替え" aria-pressed="false" title="テーマを切り替え">
 <span class="toggle-orb" aria-hidden="true">
 <svg class="sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path></svg>
 <svg class="moon-icon" viewBox="0 0 24 24"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"></path><path d="M16 3v4m-2-2h4"></path></svg>
