@@ -35,6 +35,12 @@ h1{font-size:30px;margin:7px 0}.sub,.hint,footer{color:var(--muted);font-size:13
 .card:before{top:-6px;bottom:-6px;left:0;right:0;border-left:2px solid var(--deco);border-right:2px solid var(--deco)}
 .card:after{top:0;bottom:0;left:-6px;right:-6px;border-top:2px solid var(--deco);border-bottom:2px solid var(--deco)}
 .card>*{position:relative;z-index:1}
+.card{transition:background-color .3s ease,transform .35s cubic-bezier(.2,.9,.4,1.1)}
+@media(hover:hover) and (pointer:fine){.card:hover{background:rgba(108,71,50,.035);transform:scale(.995)}.card:hover:before{top:0;bottom:0}.card:hover:after{left:0;right:0}}
+@media(prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+@keyframes pageEnter{from{opacity:0;transform:translateY(8px) scale(.992)}to{opacity:1;transform:translateY(0) scale(1)}}
+.panel:not([hidden]){animation:pageEnter .26s cubic-bezier(.2,.7,.25,1) both}
+@media(prefers-reduced-motion:reduce){.panel:not([hidden]){animation:none}}
 h2{font-size:16px;margin:0 0 15px}
 .tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0 23px}
 .tab{padding:11px 5px;border:1px solid var(--control-border);border-radius:10px;background:var(--input);color:var(--ink);font:inherit;font-size:13px;font-weight:700;cursor:pointer}
